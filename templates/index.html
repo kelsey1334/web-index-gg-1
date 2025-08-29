@@ -39,57 +39,76 @@
       {% for api in candidates %}
         <div id="api-{{ api.name }}" class="p-3 border rounded mb-3">
           <p>👉 Add email này vào GSC (Owner):</p>
-          <code class="block bg-gray-100 p-2 my-2">{{ api.email }}</code>
+          <code id="email-{{ api.name }}" class="block bg-gray-100 p-2 my-2">{{ api.email }}</code>
+          <button onclick="copyEmail('{{ api.name }}')" 
+                  class="px-4 py-2 bg-blue-500 text-white rounded">
+            📋 Copy Email
+          </button>
           <button onclick="startIndex('{{ api.name }}','{{ domain }}')" 
-        class="px-4 py-2 bg-green-500 text-white rounded">
-  Bắt đầu với {{ api.name }}
-        </button>
+                  id="start-btn-{{ api.name }}" 
+                  class="px-4 py-2 bg-green-500 text-white rounded hidden">
+            🚀 Bắt đầu index
+          </button>
         </div>
       {% endfor %}
 
       <!-- Container log realtime -->
       <div id="log-container" class="hidden mt-4">
         <h2 class="font-semibold mb-2">📜 Log Realtime:</h2>
-        <pre id="log" 
-             class="bg-black text-green-400 p-3 rounded h-80 overflow-y-auto whitespace-pre-line"></pre>
+        <pre id="log" class="bg-black text-green-400 p-3 rounded h-80 overflow-y-auto whitespace-pre-line"></pre>
       </div>
     {% endif %}
   </div>
 
   <script>
-  function startIndex(api, domain) {
-    // Ẩn toàn bộ block chứa API buttons
-    document.querySelectorAll("[id^='api-']").forEach(el => {
-      el.style.display = "none";
-    });
+    function copyEmail(api) {
+      let emailText = document.getElementById("email-" + api).innerText;
+      navigator.clipboard.writeText(emailText).then(() => {
+        alert("✅ Đã copy email: " + emailText);
 
-    // Hiện log container
-    document.getElementById("log-container").classList.remove("hidden");
+        // Ẩn tất cả block API khác
+        document.querySelectorAll("[id^='api-']").forEach(el => {
+          if (!el.id.includes(api)) {
+            el.style.display = "none";
+          }
+        });
 
-    // Mở WebSocket
-    let protocol = (location.protocol === 'https:') ? 'wss' : 'ws';
-    let ws = new WebSocket(`${protocol}://${location.host}/ws/${api}/${domain}`);
-    let logDiv = document.getElementById("log");
-    logDiv.innerHTML = "";
-
-    ws.onopen = () => {
-      appendLog("🔗 WebSocket connected...");
-    };
-    ws.onmessage = (event) => {
-      appendLog(event.data);
-    };
-    ws.onerror = () => {
-      appendLog("❌ WebSocket error!");
-    };
-    ws.onclose = () => {
-      appendLog("🔌 WebSocket closed.");
-    };
-
-    function appendLog(message) {
-      logDiv.innerHTML += message + "\n";
-      logDiv.scrollTop = logDiv.scrollHeight;
+        // Hiện nút Bắt đầu cho API đã chọn
+        document.getElementById("start-btn-" + api).classList.remove("hidden");
+      });
     }
-  }
-</script>
+
+    function startIndex(api, domain) {
+      // Ẩn nút Bắt đầu sau khi bấm
+      document.getElementById("start-btn-" + api).style.display = "none";
+
+      // Hiện log container
+      document.getElementById("log-container").classList.remove("hidden");
+
+      // WebSocket
+      let protocol = (location.protocol === 'https:') ? 'wss' : 'ws';
+      let ws = new WebSocket(`${protocol}://${location.host}/ws/${api}/${domain}`);
+      let logDiv = document.getElementById("log");
+      logDiv.innerHTML = "";
+
+      ws.onopen = () => {
+        appendLog("🔗 WebSocket connected...");
+      };
+      ws.onmessage = (event) => {
+        appendLog(event.data);
+      };
+      ws.onerror = () => {
+        appendLog("❌ WebSocket error!");
+      };
+      ws.onclose = () => {
+        appendLog("🔌 WebSocket closed.");
+      };
+
+      function appendLog(message) {
+        logDiv.innerHTML += message + "\n";
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
+    }
+  </script>
 </body>
 </html>
