@@ -126,7 +126,7 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
     try:
         await websocket.accept()
         api = next(a for a in APIs if a["name"] == api_name)
-        await websocket.send_text(f"🔗 Connected. Bắt đầu index domain {domain} bằng {api['name']} ({api['email']})")
+        await websocket.send_text(f"🚀 Bắt đầu index domain `{domain}` bằng {api['name']} ({api['email']})")
 
         sitemap_url_https = f"https://{domain}/sitemap_index.xml"
         sitemap_url_http = f"http://{domain}/sitemap_index.xml"
@@ -141,7 +141,7 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
             return
 
         total = len(urls)
-        await websocket.send_text(f"🔍 Tìm thấy {total} URL.")
+        await websocket.send_text(f"🔍 Tìm thấy {total} URL, bắt đầu gửi lên Google...")
 
         success, fail = 0, 0
         for i, url in enumerate(urls, start=1):
@@ -149,6 +149,7 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
             if remaining <= 0:
                 await websocket.send_text("🚫 Hết quota API này!")
                 break
+
             result = index_with_api(api, url)
             if "error" in result:
                 fail += 1
@@ -158,14 +159,12 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
                 success += 1
                 await websocket.send_text(f"[{i}/{total}] ✅ {url}")
 
-        await websocket.send_text(f"🎯 Hoàn tất. Thành công: {success}, Thất bại: {fail}\n{quota_message(api)}")
+        await websocket.send_text(
+            f"🎯 Hoàn tất. Thành công: {success}, Thất bại: {fail}\\n{quota_message(api)}"
+        )
         await websocket.close()
-    except WebSocketDisconnect:
-        logging.info("WebSocket client disconnected")
     except Exception as e:
-        logging.error(f"WebSocket error: {e}")
-        try:
-            await websocket.send_text(f"❌ Server error: {e}")
-            await websocket.close()
+        await websocket.send_text(f"❌ Server error: {e}")
+        await websocket.close()
         except:
             pass
