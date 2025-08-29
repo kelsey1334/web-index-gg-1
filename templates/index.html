@@ -25,37 +25,55 @@
           <li>{{ d }}</li>
         {% endfor %}
       </ul>
+
       <h2 class="font-semibold">API khả dụng:</h2>
       {% for api in candidates %}
-        <div class="p-3 border rounded mb-3">
+        <div id="api-{{ api.name }}" class="p-3 border rounded mb-3">
           <p>👉 Add email này vào GSC (Owner):</p>
           <code class="block bg-gray-100 p-2 my-2">{{ api.email }}</code>
-          <button onclick="startIndex('{{ api.name }}','{{ domain }}')" class="px-4 py-2 bg-green-500 text-white rounded">Bắt đầu với {{ api.name }}</button>
+          <button onclick="startIndex('{{ api.name }}','{{ domain }}','api-{{ api.name }}')" 
+                  class="px-4 py-2 bg-green-500 text-white rounded">Bắt đầu với {{ api.name }}</button>
         </div>
       {% endfor %}
-      <div id="log" class="bg-black text-green-400 p-3 rounded h-64 overflow-y-auto"></div>
+
+      <div id="log-container" class="hidden mt-4">
+        <h2 class="font-semibold mb-2">📜 Log Realtime:</h2>
+        <pre id="log" class="bg-black text-green-400 p-3 rounded h-64 overflow-y-auto whitespace-pre-line"></pre>
+      </div>
     {% endif %}
   </div>
 
   <script>
-    function startIndex(api, domain) {
+    function startIndex(api, domain, blockId) {
+      // Ẩn block API sau khi bấm
+      document.getElementById(blockId).style.display = "none";
+
+      // Hiện log container
+      document.getElementById("log-container").classList.remove("hidden");
+
+      // Mở WebSocket
       let protocol = (location.protocol === 'https:') ? 'wss' : 'ws';
       let ws = new WebSocket(`${protocol}://${location.host}/ws/${api}/${domain}`);
       let logDiv = document.getElementById("log");
       logDiv.innerHTML = "";
+
       ws.onopen = () => {
-        logDiv.innerHTML += "🔗 WebSocket connected...\n";
+        appendLog("🔗 WebSocket connected...");
       };
       ws.onmessage = (event) => {
-        logDiv.innerHTML += event.data + "\n";
-        logDiv.scrollTop = logDiv.scrollHeight;
+        appendLog(event.data);
       };
       ws.onerror = () => {
-        logDiv.innerHTML += "❌ WebSocket error!\n";
+        appendLog("❌ WebSocket error!");
       };
       ws.onclose = () => {
-        logDiv.innerHTML += "🔌 WebSocket closed.\n";
+        appendLog("🔌 WebSocket closed.");
       };
+
+      function appendLog(message) {
+        logDiv.innerHTML += message + "\\n";
+        logDiv.scrollTop = logDiv.scrollHeight;
+      }
     }
   </script>
 </body>
