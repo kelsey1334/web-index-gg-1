@@ -8,9 +8,15 @@
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
   <div class="bg-white p-6 rounded-xl shadow-xl w-full max-w-3xl">
     <h1 class="text-2xl font-bold mb-4">🚀 Index Bot Web</h1>
+
+    <!-- Form nhập domain -->
     <form action="/check" method="post" class="mb-4 flex space-x-2">
-      <input type="text" name="domain" placeholder="Nhập domain hoặc URL" class="flex-1 p-2 border rounded">
-      <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded">Kiểm tra</button>
+      <input type="text" name="domain" placeholder="Nhập domain hoặc URL" 
+             class="flex-1 p-2 border rounded">
+      <button type="submit" 
+              class="px-4 py-2 bg-blue-500 text-white rounded">
+        Kiểm tra
+      </button>
     </form>
 
     {% if error %}
@@ -18,7 +24,10 @@
     {% endif %}
 
     {% if domain %}
-      <p class="mb-2">🔍 Domain: <b>{{ domain }}</b>, Sitemap có <b>{{ total }}</b> URL.</p>
+      <p class="mb-2">
+        🔍 Domain: <b>{{ domain }}</b>, Sitemap có <b>{{ total }}</b> URL.
+      </p>
+
       <h2 class="font-semibold">📊 Quota hiện tại:</h2>
       <ul class="mb-4 list-disc pl-5">
         {% for d in details %}
@@ -32,13 +41,17 @@
           <p>👉 Add email này vào GSC (Owner):</p>
           <code class="block bg-gray-100 p-2 my-2">{{ api.email }}</code>
           <button onclick="startIndex('{{ api.name }}','{{ domain }}','api-{{ api.name }}')" 
-                  class="px-4 py-2 bg-green-500 text-white rounded">Bắt đầu với {{ api.name }}</button>
+                  class="px-4 py-2 bg-green-500 text-white rounded">
+            Bắt đầu với {{ api.name }}
+          </button>
         </div>
       {% endfor %}
 
+      <!-- Container log realtime -->
       <div id="log-container" class="hidden mt-4">
         <h2 class="font-semibold mb-2">📜 Log Realtime:</h2>
-        <pre id="log" class="bg-black text-green-400 p-3 rounded h-64 overflow-y-auto whitespace-pre-line"></pre>
+        <pre id="log" 
+             class="bg-black text-green-400 p-3 rounded h-80 overflow-y-auto whitespace-pre-line"></pre>
       </div>
     {% endif %}
   </div>
@@ -71,7 +84,7 @@
       };
 
       function appendLog(message) {
-        logDiv.innerHTML += message + "\\n";
+        logDiv.innerHTML += message + "\n";
         logDiv.scrollTop = logDiv.scrollHeight;
       }
     }
