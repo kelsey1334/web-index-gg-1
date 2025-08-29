@@ -6,15 +6,24 @@ from google.oauth2 import service_account
 from google.auth.transport.requests import AuthorizedSession
 from datetime import datetime, timedelta, timezone
 
+# ===========================
+# App & Templates
+# ===========================
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 logging.basicConfig(level=logging.INFO)
 
+# ===========================
+# Config
+# ===========================
 SCOPES = ["https://www.googleapis.com/auth/indexing"]
 INDEXING_ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish"
 DAILY_LIMIT = 200
 
+# ===========================
+# Load API credentials
+# ===========================
 API_CREDENTIALS = [
     {"name": "API1", "json": os.getenv("API1_JSON")},
     {"name": "API2", "json": os.getenv("API2_JSON")},
@@ -38,6 +47,9 @@ for api in API_CREDENTIALS:
             "day": datetime.utcnow().date()
         })
 
+# ===========================
+# Quota functions
+# ===========================
 def check_api_quota(api):
     today = datetime.utcnow().date()
     if today != api["day"]:
@@ -54,6 +66,9 @@ def quota_message(api):
                      + timedelta(days=1)).replace(tzinfo=timezone.utc).astimezone(timezone(timedelta(hours=7)))
     return f"{api['name']} ({api['email']}): {api['used']}/{DAILY_LIMIT} used, còn {remaining}. Reset {reset_time_vn.strftime('%H:%M %d-%m-%Y')} VN"
 
+# ===========================
+# Helpers
+# ===========================
 def extract_domain(text):
     text = text.strip()
     text = re.sub(r"^https?://", "", text)
@@ -86,6 +101,9 @@ def chunk_list(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i+n]
 
+# ===========================
+# Routes
+# ===========================
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -121,6 +139,9 @@ async def check_domain(request: Request, domain: str = Form(...)):
         "details": details
     })
 
+# ===========================
+# WebSocket
+# ===========================
 @app.websocket("/ws/{api_name}/{domain}")
 async def ws_index(websocket: WebSocket, api_name: str, domain: str):
     try:
@@ -160,11 +181,15 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
                 await websocket.send_text(f"[{i}/{total}] ✅ {url}")
 
         await websocket.send_text(
-            f"🎯 Hoàn tất. Thành công: {success}, Thất bại: {fail}\\n{quota_message(api)}"
+            f"🎯 Hoàn tất. Thành công: {success}, Thất bại: {fail}\n{quota_message(api)}"
         )
         await websocket.close()
+    except WebSocketDisconnect:
+        logging.info("🔌 WebSocket client disconnected")
     except Exception as e:
-        await websocket.send_text(f"❌ Server error: {e}")
-        await websocket.close()
+        logging.error(f"WebSocket error: {e}")
+        try:
+            await websocket.send_text(f"❌ Server error: {e}")
+            await websocket.close()
         except:
             pass
