@@ -20,6 +20,7 @@ logging.basicConfig(level=logging.INFO)
 SCOPES = ["https://www.googleapis.com/auth/indexing"]
 INDEXING_ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish"
 DAILY_LIMIT = 200
+SINBYTE_API_KEY = os.getenv("SINBYTE_API_KEY")
 
 # ===========================
 # Load API credentials
@@ -97,9 +98,23 @@ def parse_sitemap(url):
             urls.append(loc)
     return urls
 
-def chunk_list(lst, n):
-    for i in range(0, len(lst), n):
-        yield lst[i:i+n]
+def submit_to_sinbyte(urls: list, name: str = "IndexBot"):
+    sinbyte_url = "https://app.sinbyte.com/api/indexing/"
+    headers = {
+        "Authorization": "application/json",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "apikey": SINBYTE_API_KEY,
+        "name": name,
+        "dripfeed": 1,
+        "urls": urls
+    }
+    try:
+        resp = requests.post(sinbyte_url, headers=headers, json=data)
+        return resp.status_code, resp.text
+    except Exception as e:
+        return None, str(e)
 
 # ===========================
 # Routes
@@ -180,9 +195,15 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
                 success += 1
                 await websocket.send_text(f"[{i}/{total}] ✅ {url}")
 
-        await websocket.send_text(
-            f"🎯 Hoàn tất. Thành công: {success}, Thất bại: {fail}\n{quota_message(api)}"
-        )
+        await websocket.send_text(f"🎯 Hoàn tất. Thành công: {success}, Thất bại: {fail}\n{quota_message(api)}")
+
+        # Gửi toàn bộ URL lên Sinbyte
+        sinbyte_status, sinbyte_response = submit_to_sinbyte(urls, name=f"{domain}-{api_name}")
+        if sinbyte_status == 200:
+            await websocket.send_text("✅ Đã gửi danh sách URL lên Sinbyte thành công.")
+        else:
+            await websocket.send_text(f"⚠️ Gửi Sinbyte thất bại: {sinbyte_response}")
+
         await websocket.close()
     except WebSocketDisconnect:
         logging.info("🔌 WebSocket client disconnected")
