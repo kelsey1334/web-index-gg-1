@@ -28,31 +28,33 @@
         🔍 Domain: <b>{{ domain }}</b>, Sitemap có <b>{{ total }}</b> URL.
       </p>
 
-      {% if not hide_email_after_submit %}
-      <h2 class="font-semibold">📊 Quota hiện tại:</h2>
-      <ul class="mb-4 list-disc pl-5">
-        {% for d in details %}
-          <li>{{ d }}</li>
-        {% endfor %}
-      </ul>
+      <div id="quota-section">
+        <h2 class="font-semibold">📊 Quota hiện tại:</h2>
+        <ul class="mb-4 list-disc pl-5">
+          {% for d in details %}
+            <li>{{ d }}</li>
+          {% endfor %}
+        </ul>
+      </div>
 
-      <h2 class="font-semibold">API khả dụng:</h2>
-      {% for api in candidates %}
-        <div id="api-{{ api.name }}" class="p-3 border rounded mb-3">
-          <p>👉 Add email này vào GSC (Owner):</p>
-          <code id="email-{{ api.name }}" class="block bg-gray-100 p-2 my-2">{{ api.email }}</code>
-          <button onclick="copyEmail('{{ api.name }}')" 
-                  class="px-4 py-2 bg-blue-500 text-white rounded">
-            📋 Copy Email
-          </button>
-          <button onclick="startIndex('{{ api.name }}','{{ domain }}')" 
-                  id="start-btn-{{ api.name }}" 
-                  class="px-4 py-2 bg-green-500 text-white rounded hidden">
-            🚀 Bắt đầu index
-          </button>
-        </div>
-      {% endfor %}
-      {% endif %}
+      <div id="api-section">
+        <h2 class="font-semibold">API khả dụng:</h2>
+        {% for api in candidates %}
+          <div id="api-{{ api.name }}" class="p-3 border rounded mb-3">
+            <p>👉 Add email này vào GSC (Owner):</p>
+            <code id="email-{{ api.name }}" class="block bg-gray-100 p-2 my-2">{{ api.email }}</code>
+            <button onclick="copyEmail('{{ api.name }}')" 
+                    class="px-4 py-2 bg-blue-500 text-white rounded">
+              📋 Copy Email
+            </button>
+            <button onclick="startIndex('{{ api.name }}','{{ domain }}')" 
+                    id="start-btn-{{ api.name }}" 
+                    class="px-4 py-2 bg-green-500 text-white rounded hidden">
+              🚀 Bắt đầu index
+            </button>
+          </div>
+        {% endfor %}
+      </div>
 
       <!-- Container log realtime -->
       <div id="log-container" class="hidden mt-4">
@@ -79,6 +81,12 @@
     }
 
     function startIndex(api, domain) {
+      // Ẩn phần quota và API khả dụng
+      const quotaSection = document.getElementById("quota-section");
+      const apiSection = document.getElementById("api-section");
+      if (quotaSection) quotaSection.style.display = "none";
+      if (apiSection) apiSection.style.display = "none";
+
       document.getElementById("start-btn-" + api).style.display = "none";
       document.getElementById("log-container").classList.remove("hidden");
 
