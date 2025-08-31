@@ -117,44 +117,6 @@ def submit_to_sinbyte(urls: list, name: str = "IndexBot"):
         return None, str(e)
 
 # ===========================
-# Routes
-# ===========================
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
-@app.post("/check", response_class=HTMLResponse)
-async def check_domain(request: Request, domain: str = Form(...)):
-    domain = extract_domain(domain)
-    sitemap_url_https = f"https://{domain}/sitemap_index.xml"
-    sitemap_url_http = f"http://{domain}/sitemap_index.xml"
-    try:
-        try:
-            urls = parse_sitemap(sitemap_url_https)
-        except Exception:
-            urls = parse_sitemap(sitemap_url_http)
-    except Exception as e:
-        return templates.TemplateResponse("index.html", {"request": request, "error": str(e)})
-
-    total = len(urls)
-    candidates = []
-    details = []
-    for api in APIs:
-        remaining = check_api_quota(api)
-        details.append(quota_message(api))
-        if remaining >= total:
-            candidates.append(api)
-
-    return templates.TemplateResponse("index.html", {
-        "request": request,
-        "domain": domain,
-        "total": total,
-        "apis": APIs,
-        "candidates": candidates,
-        "details": details
-    })
-
-# ===========================
 # WebSocket
 # ===========================
 @app.websocket("/ws/{api_name}/{domain}")
@@ -190,19 +152,20 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
             if "error" in result:
                 fail += 1
                 err_msg = result['error'].get('message', 'Unknown error')
-                await websocket.send_text(f"[{i}/{total}] ❌ {url} (Lỗi: {err_msg})")
+                await websocket.send_text(f"[GSC {i}/{total}] ❌ {url} (Lỗi: {err_msg})")
             else:
                 success += 1
-                await websocket.send_text(f"[{i}/{total}] ✅ {url}")
+                await websocket.send_text(f"[GSC {i}/{total}] ✅ {url}")
 
-        await websocket.send_text(f"🎯 Hoàn tất. Thành công: {success}, Thất bại: {fail}\n{quota_message(api)}")
+        await websocket.send_text(f"🎯 GSC hoàn tất. Thành công: {success}, Thất bại: {fail}\n{quota_message(api)}")
 
-        # Gửi toàn bộ URL lên Sinbyte
-        sinbyte_status, sinbyte_response = submit_to_sinbyte(urls, name=f"{domain}-{api_name}")
+        # Gửi toàn bộ URL lên Sinbyte một lần
+        await websocket.send_text("🌐 Đang gửi toàn bộ danh sách URL lên Sinbyte...")
+        sinbyte_status, sinbyte_resp = submit_to_sinbyte(urls, name=f"{domain}-{api_name}")
         if sinbyte_status == 200:
-            await websocket.send_text("✅ Đã gửi danh sách URL lên Sinbyte thành công.")
+            await websocket.send_text("✅ Đã gửi toàn bộ URL lên Sinbyte thành công.")
         else:
-            await websocket.send_text(f"⚠️ Gửi Sinbyte thất bại: {sinbyte_response}")
+            await websocket.send_text(f"❌ Gửi Sinbyte thất bại: {sinbyte_resp}")
 
         await websocket.close()
     except WebSocketDisconnect:
