@@ -117,6 +117,44 @@ def submit_to_sinbyte(urls: list, name: str = "IndexBot"):
         return None, str(e)
 
 # ===========================
+# Routes
+# ===========================
+@app.get("/", response_class=HTMLResponse)
+async def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.post("/check", response_class=HTMLResponse)
+async def check_domain(request: Request, domain: str = Form(...)):
+    domain = extract_domain(domain)
+    sitemap_url_https = f"https://{domain}/sitemap_index.xml"
+    sitemap_url_http = f"http://{domain}/sitemap_index.xml"
+    try:
+        try:
+            urls = parse_sitemap(sitemap_url_https)
+        except Exception:
+            urls = parse_sitemap(sitemap_url_http)
+    except Exception as e:
+        return templates.TemplateResponse("index.html", {"request": request, "error": str(e)})
+
+    total = len(urls)
+    candidates = []
+    details = []
+    for api in APIs:
+        remaining = check_api_quota(api)
+        details.append(quota_message(api))
+        if remaining >= total:
+            candidates.append(api)
+
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "domain": domain,
+        "total": total,
+        "apis": APIs,
+        "candidates": candidates,
+        "details": details
+    })
+
+# ===========================
 # WebSocket
 # ===========================
 @app.websocket("/ws/{api_name}/{domain}")
