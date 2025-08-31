@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Index Bot Web</title>
@@ -24,39 +24,35 @@
     {% endif %}
 
     {% if domain %}
-      <p class="mb-2">🔍 Domain: <b>{{ domain }}</b>, Sitemap có <b>{{ total }}</b> URL.</p>
+      <p class="mb-2">
+        🔍 Domain: <b>{{ domain }}</b>, Sitemap có <b>{{ total }}</b> URL.
+      </p>
 
-      <!-- Quota Section -->
-      <div id="quota-section">
-        <h2 class="font-semibold">📊 Quota hiện tại:</h2>
-        <ul class="mb-4 list-disc pl-5">
-          {% for d in details %}
-            <li>{{ d }}</li>
-          {% endfor %}
-        </ul>
-      </div>
-
-      <!-- API Section -->
-      <div id="api-section">
-        <h2 class="font-semibold">API khả dụng:</h2>
-        {% for api in candidates %}
-          <div id="api-{{ api.name }}" class="p-3 border rounded mb-3">
-            <p>👉 Add email này vào GSC (Owner):</p>
-            <code id="email-{{ api.name }}" class="block bg-gray-100 p-2 my-2">{{ api.email }}</code>
-            <button onclick="copyEmail('{{ api.name }}')" 
-                    class="px-4 py-2 bg-blue-500 text-white rounded">
-              📋 Copy Email
-            </button>
-            <button onclick="startIndex('{{ api.name }}','{{ domain }}')" 
-                    id="start-btn-{{ api.name }}" 
-                    class="px-4 py-2 bg-green-500 text-white rounded hidden">
-              🚀 Bắt đầu index
-            </button>
-          </div>
+      <h2 class="font-semibold">📊 Quota hiện tại:</h2>
+      <ul class="mb-4 list-disc pl-5">
+        {% for d in details %}
+          <li>{{ d }}</li>
         {% endfor %}
-      </div>
+      </ul>
 
-      <!-- Log Realtime -->
+      <h2 class="font-semibold">API khả dụng:</h2>
+      {% for api in candidates %}
+        <div id="api-{{ api.name }}" class="p-3 border rounded mb-3">
+          <p>👉 Add email này vào GSC (Chủ sở hữu/Owner):</p>
+          <code id="email-{{ api.name }}" class="block bg-gray-100 p-2 my-2">{{ api.email }}</code>
+          <button onclick="copyEmail('{{ api.name }}')" 
+                  class="px-4 py-2 bg-blue-500 text-white rounded">
+            📋 Copy Email
+          </button>
+          <button onclick="startIndex('{{ api.name }}','{{ domain }}')" 
+                  id="start-btn-{{ api.name }}" 
+                  class="px-4 py-2 bg-green-500 text-white rounded hidden">
+            🚀 Bắt đầu index
+          </button>
+        </div>
+      {% endfor %}
+
+      <!-- Container log realtime -->
       <div id="log-container" class="hidden mt-4">
         <h2 class="font-semibold mb-2">📜 Log Realtime:</h2>
         <pre id="log" class="bg-black text-green-400 p-3 rounded h-80 overflow-y-auto whitespace-pre-line"></pre>
@@ -66,47 +62,44 @@
 
   <script>
     function copyEmail(api) {
-      const emailText = document.getElementById("email-" + api).innerText;
+      let emailText = document.getElementById("email-" + api).innerText;
       navigator.clipboard.writeText(emailText).then(() => {
         alert("✅ Đã copy email: " + emailText);
 
-        // Ẩn quota
-        const quotaDiv = document.getElementById("quota-section");
-        if (quotaDiv) quotaDiv.style.display = "none";
-
-        // Ẩn toàn bộ API khác
         document.querySelectorAll("[id^='api-']").forEach(el => {
-          if (!el.id.includes(api)) el.style.display = "none";
+          if (!el.id.includes(api)) {
+            el.style.display = "none";
+          }
         });
 
-        // Hiện nút bắt đầu cho API đã chọn
-        const startBtn = document.getElementById("start-btn-" + api);
-        if (startBtn) startBtn.classList.remove("hidden");
+        document.getElementById("start-btn-" + api).classList.remove("hidden");
       });
     }
 
     function startIndex(api, domain) {
-      // Ẩn nút bắt đầu
-      const btn = document.getElementById("start-btn-" + api);
-      if (btn) btn.style.display = "none";
+      document.getElementById("start-btn-" + api).style.display = "none";
+      document.getElementById("log-container").classList.remove("hidden");
 
-      // Hiện log container
-      const logContainer = document.getElementById("log-container");
-      if (logContainer) logContainer.classList.remove("hidden");
-
-      // WebSocket
-      const protocol = (location.protocol === 'https:') ? 'wss' : 'ws';
-      const ws = new WebSocket(`${protocol}://${location.host}/ws/${api}/${domain}`);
-      const logDiv = document.getElementById("log");
+      let protocol = (location.protocol === 'https:') ? 'wss' : 'ws';
+      let ws = new WebSocket(`${protocol}://${location.host}/ws/${api}/${domain}`);
+      let logDiv = document.getElementById("log");
       logDiv.innerHTML = "";
 
-      ws.onopen = () => appendLog("🔗 WebSocket connected...");
-      ws.onmessage = (event) => appendLog(event.data);
-      ws.onerror = () => appendLog("❌ WebSocket error!");
-      ws.onclose = () => appendLog("🔌 WebSocket closed.");
+      ws.onopen = () => {
+        appendLog("🔗 WebSocket connected...");
+      };
+      ws.onmessage = (event) => {
+        appendLog(event.data);
+      };
+      ws.onerror = () => {
+        appendLog("❌ WebSocket error!");
+      };
+      ws.onclose = () => {
+        appendLog("🔌 WebSocket closed.");
+      };
 
-      function appendLog(msg) {
-        logDiv.innerHTML += msg + "\n";
+      function appendLog(message) {
+        logDiv.innerHTML += message + "\n";
         logDiv.scrollTop = logDiv.scrollHeight;
       }
     }
