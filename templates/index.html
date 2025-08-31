@@ -70,24 +70,27 @@
       navigator.clipboard.writeText(emailText).then(() => {
         alert("✅ Đã copy email: " + emailText);
 
+        // Ẩn quota và danh sách email còn lại
+        const quotaSection = document.getElementById("quota-section");
+        const apiSection = document.getElementById("api-section");
+        if (quotaSection) quotaSection.style.display = "none";
+
         document.querySelectorAll("[id^='api-']").forEach(el => {
           if (!el.id.includes(api)) {
             el.style.display = "none";
           }
         });
 
+        // Hiện nút bắt đầu index
         document.getElementById("start-btn-" + api).classList.remove("hidden");
       });
     }
 
     function startIndex(api, domain) {
-      // Ẩn phần quota và API khả dụng
-      const quotaSection = document.getElementById("quota-section");
-      const apiSection = document.getElementById("api-section");
-      if (quotaSection) quotaSection.style.display = "none";
-      if (apiSection) apiSection.style.display = "none";
-
+      // Ẩn nút bắt đầu index
       document.getElementById("start-btn-" + api).style.display = "none";
+
+      // Hiện log
       document.getElementById("log-container").classList.remove("hidden");
 
       let protocol = (location.protocol === 'https:') ? 'wss' : 'ws';
