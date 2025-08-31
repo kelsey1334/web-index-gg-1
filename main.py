@@ -1,4 +1,5 @@
 import logging, os, json, re, requests, xml.etree.ElementTree as ET
+import asyncio
 from fastapi import FastAPI, Request, WebSocket, Form, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -163,6 +164,7 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
         await websocket.accept()
         api = next(a for a in APIs if a["name"] == api_name)
         await websocket.send_text(f"🚀 Bắt đầu index domain `{domain}` bằng {api['name']} ({api['email']})")
+        await asyncio.sleep(0)
 
         sitemap_url_https = f"https://{domain}/sitemap_index.xml"
         sitemap_url_http = f"http://{domain}/sitemap_index.xml"
@@ -178,6 +180,7 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
 
         total = len(urls)
         await websocket.send_text(f"🔍 Tìm thấy {total} URL, bắt đầu gửi lên Google...")
+        await asyncio.sleep(0)
 
         success, fail = 0, 0
         for i, url in enumerate(urls, start=1):
@@ -194,12 +197,14 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
             else:
                 success += 1
                 await websocket.send_text(f"[GSC {i}/{total}] ✅ {url}")
+            await asyncio.sleep(0)
 
         await websocket.send_text(f"🎯 GSC hoàn tất. Thành công: {success}, Thất bại: {fail}\n{quota_message(api)}")
+        await asyncio.sleep(0)
 
-        # Gửi toàn bộ URL lên Sinbyte một lần
         await websocket.send_text("🌐 Đang gửi toàn bộ danh sách URL lên Sinbyte...")
         sinbyte_status, sinbyte_resp = submit_to_sinbyte(urls, name=f"{domain}-{api_name}")
+        await asyncio.sleep(0)
         if sinbyte_status == 200:
             await websocket.send_text("✅ Đã gửi toàn bộ URL lên Sinbyte thành công.")
         else:
