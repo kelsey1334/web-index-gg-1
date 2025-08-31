@@ -28,6 +28,7 @@
         🔍 Domain: <b>{{ domain }}</b>, Sitemap có <b>{{ total }}</b> URL.
       </p>
 
+      {% if not hide_email_after_submit %}
       <h2 class="font-semibold">📊 Quota hiện tại:</h2>
       <ul class="mb-4 list-disc pl-5">
         {% for d in details %}
@@ -51,6 +52,7 @@
           </button>
         </div>
       {% endfor %}
+      {% endif %}
 
       <!-- Container log realtime -->
       <div id="log-container" class="hidden mt-4">
