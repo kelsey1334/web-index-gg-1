@@ -41,7 +41,7 @@
         <h2 class="font-semibold">API khả dụng:</h2>
         {% for api in candidates %}
           <div id="api-{{ api.name }}" class="p-3 border rounded mb-3">
-            <p>👉 Add email này vào GSC (Owner):</p>
+            <p>👉 Add email này vào GSC (Với quyền chủ sở hữu(Owner)):</p>
             <code id="email-{{ api.name }}" class="block bg-gray-100 p-2 my-2">{{ api.email }}</code>
             <button onclick="copyEmail('{{ api.name }}')" 
                     class="px-4 py-2 bg-blue-500 text-white rounded">
@@ -49,7 +49,7 @@
             </button>
             <button onclick="startIndex('{{ api.name }}','{{ domain }}')" 
                     id="start-btn-{{ api.name }}" 
-                    class="px-4 py-2 bg-green-500 text-white rounded hidden">
+                    class="px-4 py-2 bg-green-500 text-white rounded mt-2 hidden">
               🚀 Bắt đầu index
             </button>
           </div>
@@ -70,29 +70,31 @@
       navigator.clipboard.writeText(emailText).then(() => {
         alert("✅ Đã copy email: " + emailText);
 
-        // Ẩn quota và danh sách email còn lại
-        const quotaSection = document.getElementById("quota-section");
-        const apiSection = document.getElementById("api-section");
-        if (quotaSection) quotaSection.style.display = "none";
-
+        // Ẩn tất cả block API khác
         document.querySelectorAll("[id^='api-']").forEach(el => {
           if (!el.id.includes(api)) {
             el.style.display = "none";
           }
         });
 
-        // Hiện nút bắt đầu index
+        // Ẩn quota section
+        const quotaSection = document.getElementById("quota-section");
+        if (quotaSection) quotaSection.style.display = "none";
+
+        // Hiện nút Bắt đầu index cho API đã chọn
         document.getElementById("start-btn-" + api).classList.remove("hidden");
       });
     }
 
     function startIndex(api, domain) {
-      // Ẩn nút bắt đầu index
-      document.getElementById("start-btn-" + api).style.display = "none";
+      // Ẩn nút Bắt đầu sau khi bấm
+      const startBtn = document.getElementById("start-btn-" + api);
+      if (startBtn) startBtn.style.display = "none";
 
-      // Hiện log
+      // Hiện log container
       document.getElementById("log-container").classList.remove("hidden");
 
+      // WebSocket
       let protocol = (location.protocol === 'https:') ? 'wss' : 'ws';
       let ws = new WebSocket(`${protocol}://${location.host}/ws/${api}/${domain}`);
       let logDiv = document.getElementById("log");
