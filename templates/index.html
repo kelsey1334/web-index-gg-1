@@ -66,26 +66,20 @@
       navigator.clipboard.writeText(emailText).then(() => {
         alert("✅ Đã copy email: " + emailText);
 
-        // Ẩn tất cả block API khác
         document.querySelectorAll("[id^='api-']").forEach(el => {
           if (!el.id.includes(api)) {
             el.style.display = "none";
           }
         });
 
-        // Hiện nút Bắt đầu cho API đã chọn
         document.getElementById("start-btn-" + api).classList.remove("hidden");
       });
     }
 
     function startIndex(api, domain) {
-      // Ẩn nút Bắt đầu sau khi bấm
       document.getElementById("start-btn-" + api).style.display = "none";
-
-      // Hiện log container
       document.getElementById("log-container").classList.remove("hidden");
 
-      // WebSocket
       let protocol = (location.protocol === 'https:') ? 'wss' : 'ws';
       let ws = new WebSocket(`${protocol}://${location.host}/ws/${api}/${domain}`);
       let logDiv = document.getElementById("log");
