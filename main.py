@@ -203,7 +203,7 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
         await asyncio.sleep(0)
 
         await websocket.send_text("🌐 Đang gửi toàn bộ danh sách URL lên Sinbyte...")
-        sinbyte_status, sinbyte_resp = submit_to_sinbyte(urls, name=f"{domain}-{api_name}")
+        sinbyte_status, sinbyte_resp = submit_to_sinbyte(urls, name=f"{domain}")
         await asyncio.sleep(0)
         if sinbyte_status == 200:
             await websocket.send_text("✅ Đã gửi toàn bộ URL lên Sinbyte thành công.")
