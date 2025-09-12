@@ -6,6 +6,10 @@ from fastapi.templating import Jinja2Templates
 from google.oauth2 import service_account
 from google.auth.transport.requests import AuthorizedSession
 from datetime import datetime, timedelta, timezone
+import urllib3
+
+# Disable SSL warnings
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ===========================
 # App & Templates
@@ -85,7 +89,8 @@ def index_with_api(api, url):
 
 def parse_sitemap(url):
     urls = []
-    r = requests.get(url)
+    # Bỏ kiểm tra SSL
+    r = requests.get(url, verify=False)
     r.raise_for_status()
     root = ET.fromstring(r.content)
     ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
