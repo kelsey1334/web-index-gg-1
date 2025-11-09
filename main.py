@@ -1,4 +1,4 @@
-import logging, os, json, re, requests, xml.etree.ElementTree as ET
+import logging, os, json, re, base64, requests, xml.etree.ElementTree as ET
 import asyncio
 from fastapi import FastAPI, Request, WebSocket, Form, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
@@ -18,6 +18,7 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("indexbot")
 
 # ===========================
 # Config
@@ -25,7 +26,9 @@ logging.basicConfig(level=logging.INFO)
 SCOPES = ["https://www.googleapis.com/auth/indexing"]
 INDEXING_ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish"
 DAILY_LIMIT = 200
-HPING_API_KEY = os.getenv("HPING_API_KEY")  # Lấy API Key từ biến môi trường
+HPING_API_KEY = os.getenv("HPING_API_KEY")  # 1hping ApiKey header
+
+REQUEST_TIMEOUT = int(os.getenv("REQUEST_TIMEOUT", "30"))
 
 # ===========================
 # Load API credentials
@@ -38,20 +41,77 @@ API_CREDENTIALS = [
     {"name": "API5", "json": os.getenv("API5_JSON")},
 ]
 
+def _try_parse_json_string(s: str):
+    """Thử json.loads trên chuỗi 's' (đã strip)."""
+    return json.loads(s)
+
+def _try_parse_base64_json(s: str):
+    """Thử decode Base64 rồi json.loads."""
+    raw = base64.b64decode(s)
+    return json.loads(raw.decode("utf-8"))
+
+def _try_load_from_path(p: str):
+    """Nếu 'p' là đường dẫn file, đọc nội dung JSON."""
+    if os.path.exists(p) and os.path.isfile(p):
+        with open(p, "r", encoding="utf-8") as f:
+            return json.load(f)
+    raise FileNotFoundError("Path not found")
+
+def load_service_account_info(cred_input: str):
+    """
+    Hỗ trợ 3 dạng:
+    1) JSON thuần (bắt đầu bằng '{')
+    2) Base64 của JSON
+    3) Đường dẫn file tới JSON
+    """
+    if not cred_input:
+        return None
+
+    s = cred_input.strip()
+
+    # 1) JSON thuần
+    if s.startswith("{"):
+        try:
+            return _try_parse_json_string(s)
+        except Exception as e:
+            logger.warning("JSON string parse failed: %s", e)
+
+    # 2) Base64 JSON
+    try:
+        # Heuristic: base64 thường không chứa khoảng trắng, nhưng vẫn thử decode
+        return _try_parse_base64_json(s)
+    except Exception:
+        pass
+
+    # 3) Đường dẫn file
+    try:
+        return _try_load_from_path(s)
+    except Exception:
+        pass
+
+    # Không nhận diện được
+    raise ValueError("Invalid credential input: not JSON, not Base64 JSON, not a valid file path")
+
 APIs = []
 for api in API_CREDENTIALS:
-    if api["json"]:
-        creds_json = json.loads(api["json"])
+    if not api["json"]:
+        logger.info("Skip %s: no env provided", api["name"])
+        continue
+    try:
+        creds_json = load_service_account_info(api["json"])
         creds = service_account.Credentials.from_service_account_info(
             creds_json, scopes=SCOPES
         )
         APIs.append({
             "name": api["name"],
             "session": AuthorizedSession(creds),
-            "email": creds_json["client_email"],
+            "email": creds_json.get("client_email", "unknown"),
             "used": 0,
             "day": datetime.utcnow().date()
         })
+        logger.info("Loaded %s (%s)", api["name"], creds_json.get("client_email"))
+    except Exception as e:
+        logger.error("Failed to load %s: %s", api["name"], e)
 
 # ===========================
 # Quota functions
@@ -83,14 +143,17 @@ def extract_domain(text):
 
 def index_with_api(api, url):
     body = {"url": url, "type": "URL_UPDATED"}
-    response = api["session"].post(INDEXING_ENDPOINT, json=body)
+    response = api["session"].post(INDEXING_ENDPOINT, json=body, timeout=REQUEST_TIMEOUT)
     add_quota(api, 1)
-    return response.json()
+    # Uploader note: Google có thể trả về 200/OK nhưng body rỗng; đảm bảo .json() không crash
+    try:
+        return response.json()
+    except Exception:
+        return {"status": response.status_code}
 
 def parse_sitemap(url):
     urls = []
-    # Bỏ kiểm tra SSL
-    r = requests.get(url, verify=False)
+    r = requests.get(url, verify=False, timeout=REQUEST_TIMEOUT)
     r.raise_for_status()
     root = ET.fromstring(r.content)
     ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -109,6 +172,8 @@ def parse_sitemap(url):
 # ===========================
 def submit_to_1hping(urls: list, name: str = "IndexBot"):
     """Gửi danh sách URL lên 1hping"""
+    if not HPING_API_KEY:
+        return None, "HPING_API_KEY is not set"
     hping_url = "https://app.1hping.com/external/api/campaign/create?culture=vi-VN"
     headers = {
         "ApiKey": HPING_API_KEY,
@@ -120,7 +185,7 @@ def submit_to_1hping(urls: list, name: str = "IndexBot"):
         "Urls": urls
     }
     try:
-        resp = requests.post(hping_url, headers=headers, json=data)
+        resp = requests.post(hping_url, headers=headers, json=data, timeout=REQUEST_TIMEOUT)
         return resp.status_code, resp.text
     except Exception as e:
         return None, str(e)
@@ -170,7 +235,20 @@ async def check_domain(request: Request, domain: str = Form(...)):
 async def ws_index(websocket: WebSocket, api_name: str, domain: str):
     try:
         await websocket.accept()
-        api = next(a for a in APIs if a["name"] == api_name)
+
+        if not APIs:
+            await websocket.send_text("❌ Không có API Google Indexing nào được nạp. Kiểm tra biến môi trường APIx_JSON.")
+            await websocket.close()
+            return
+
+        # Tìm API theo tên
+        sel = [a for a in APIs if a["name"] == api_name]
+        if not sel:
+            await websocket.send_text(f"❌ Không tìm thấy API có name='{api_name}'.")
+            await websocket.close()
+            return
+        api = sel[0]
+
         await websocket.send_text(f"🚀 Bắt đầu index domain `{domain}` bằng {api['name']} ({api['email']})")
         await asyncio.sleep(0)
 
@@ -221,9 +299,9 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
 
         await websocket.close()
     except WebSocketDisconnect:
-        logging.info("🔌 WebSocket client disconnected")
+        logger.info("🔌 WebSocket client disconnected")
     except Exception as e:
-        logging.error(f"WebSocket error: {e}")
+        logger.error(f"WebSocket error: {e}")
         try:
             await websocket.send_text(f"❌ Server error: {e}")
             await websocket.close()
