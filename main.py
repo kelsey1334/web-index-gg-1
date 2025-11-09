@@ -25,7 +25,7 @@ logging.basicConfig(level=logging.INFO)
 SCOPES = ["https://www.googleapis.com/auth/indexing"]
 INDEXING_ENDPOINT = "https://indexing.googleapis.com/v3/urlNotifications:publish"
 DAILY_LIMIT = 200
-SINBYTE_API_KEY = os.getenv("SINBYTE_API_KEY")
+HPING_API_KEY = os.getenv("HPING_API_KEY")  # Lấy API Key từ biến môi trường
 
 # ===========================
 # Load API credentials
@@ -104,20 +104,23 @@ def parse_sitemap(url):
             urls.append(loc)
     return urls
 
-def submit_to_sinbyte(urls: list, name: str = "IndexBot"):
-    sinbyte_url = "https://app.sinbyte.com/api/indexing/"
+# ===========================
+# 1hping Integration
+# ===========================
+def submit_to_1hping(urls: list, name: str = "IndexBot"):
+    """Gửi danh sách URL lên 1hping"""
+    hping_url = "https://app.1hping.com/external/api/campaign/create?culture=vi-VN"
     headers = {
-        "Authorization": "application/json",
+        "ApiKey": HPING_API_KEY,
         "Content-Type": "application/json"
     }
     data = {
-        "apikey": SINBYTE_API_KEY,
-        "name": name,
-        "dripfeed": 1,
-        "urls": urls
+        "CampaignName": name,
+        "NumberOfDay": 1,
+        "Urls": urls
     }
     try:
-        resp = requests.post(sinbyte_url, headers=headers, json=data)
+        resp = requests.post(hping_url, headers=headers, json=data)
         return resp.status_code, resp.text
     except Exception as e:
         return None, str(e)
@@ -207,13 +210,14 @@ async def ws_index(websocket: WebSocket, api_name: str, domain: str):
         await websocket.send_text(f"🎯 GSC hoàn tất. Thành công: {success}, Thất bại: {fail}\n{quota_message(api)}")
         await asyncio.sleep(0)
 
-        await websocket.send_text("🌐 Đang gửi toàn bộ danh sách URL lên Sinbyte...")
-        sinbyte_status, sinbyte_resp = submit_to_sinbyte(urls, name=f"{domain}")
+        # Gửi danh sách lên 1hping
+        await websocket.send_text("🌐 Đang gửi toàn bộ danh sách URL lên 1hping...")
+        hping_status, hping_resp = submit_to_1hping(urls, name=f"{domain}")
         await asyncio.sleep(0)
-        if sinbyte_status == 200:
-            await websocket.send_text("✅ Đã gửi toàn bộ URL lên Sinbyte thành công.")
+        if hping_status == 200:
+            await websocket.send_text("✅ Đã gửi toàn bộ URL lên 1hping thành công.")
         else:
-            await websocket.send_text(f"❌ Gửi Sinbyte thất bại: {sinbyte_resp}")
+            await websocket.send_text(f"❌ Gửi 1hping thất bại: {hping_resp}")
 
         await websocket.close()
     except WebSocketDisconnect:
